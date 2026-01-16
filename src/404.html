@@ -1,0 +1,19 @@
+<!-- 404.html for Angular SPA on GitHub Pages -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting...</title>
+    <meta http-equiv="refresh" content="0; url=./" />
+    <script>
+      // If JS is enabled, redirect to index.html and preserve path
+      var l = window.location;
+      var path = l.pathname.replace(/\/[^/]*$/, '/');
+      window.location.replace(path + 'index.html' + l.search + l.hash);
+    </script>
+  </head>
+  <body>
+    <h1>Redirecting...</h1>
+    <p>If you are not redirected, <a href="./">click here</a>.</p>
+  </body>
+</html>

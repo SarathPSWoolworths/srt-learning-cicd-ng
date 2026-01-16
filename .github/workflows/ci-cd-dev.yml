@@ -97,7 +97,7 @@ jobs:
 
           # Create version string: MAJOR.MINOR.PATCH-build.COMMIT_COUNT+SHA
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            VERSION="${CURRENT_VERSION}-build.${COMMIT_COUNT}+${SHORT_SHA}"
+            VERSION="${CURRENT_VERSION}-dev-build.${COMMIT_COUNT}+${SHORT_SHA}"
           else
             VERSION="${CURRENT_VERSION}-pr.${{ github.event.pull_request.number || 'dev' }}+${SHORT_SHA}"
           fi
