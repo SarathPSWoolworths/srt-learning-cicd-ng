@@ -12,7 +12,7 @@
 # Environment: DEV (automatic deployment)
 # =============================================================================
 
-name: CI/CD Pipeline - Build & Deploy to DEV
+name: Automatic DEV Deployment
 
 on:
   push:
