@@ -135,7 +135,7 @@ jobs:
 
       - name: 🏗️ Build for UAT environment
         run: |
-          npm run build -- --configuration=production --base-href="/srt-learning-cicd-ng/uat/"
+          npm run build -- --configuration=uat --base-href="/srt-learning-cicd-ng/uat/"
 
       - name: 📤 Prepare UAT artifact for GitHub Pages
         run: |
