@@ -1,0 +1,361 @@
+# =============================================================================
+# Deployment Pipeline - Deploy to Production
+# =============================================================================
+#
+# This workflow handles:
+# - Manual trigger for PROD deployment
+# - Multi-level approval (QA + Management)
+# - Building with PROD environment configuration
+# - Deployment to production environment
+# - Post-deployment verification
+#
+# Trigger: Manual workflow dispatch
+# Environment: PROD (requires QA + Management approval)
+# =============================================================================
+
+name: 🚀 Deploy to PROD
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to deploy (must be tested in UAT)'
+        required: true
+        type: string
+      change_ticket:
+        description: 'Change management ticket number (e.g., CHG-12345)'
+        required: true
+        type: string
+      deployment_window:
+        description: 'Deployment window'
+        required: true
+        type: choice
+        options:
+          - 'Standard (Business Hours)'
+          - 'After Hours (6 PM - 10 PM)'
+          - 'Weekend'
+          - 'Emergency'
+      rollback_plan:
+        description: 'Rollback plan confirmed?'
+        required: true
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '20.x'
+  DEPLOYMENT_PLATFORM: 'github-pages'
+
+jobs:
+  # ===========================================================================
+  # Job: Pre-deployment Checks
+  # ===========================================================================
+  pre-deployment-checks:
+    name: 🔍 Pre-deployment Checks
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ✅ Validate inputs
+        id: validate
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+
+          echo "🔍 Running pre-deployment checks..."
+          echo ""
+
+          # Check 1: Version tag exists
+          echo "Check 1: Validating version tag..."
+          if git tag -l "v${VERSION}" | grep -q "v${VERSION}"; then
+            echo "  ✅ Version tag v${VERSION} exists"
+          else
+            echo "  ❌ Version tag v${VERSION} not found"
+            exit 1
+          fi
+
+          # Check 2: Change ticket provided
+          echo "Check 2: Validating change ticket..."
+          if [[ "${{ inputs.change_ticket }}" =~ ^CHG-[0-9]+$ ]]; then
+            echo "  ✅ Valid change ticket: ${{ inputs.change_ticket }}"
+          else
+            echo "  ⚠️ Change ticket format may be invalid: ${{ inputs.change_ticket }}"
+            echo "  (Expected format: CHG-12345)"
+          fi
+
+          # Check 3: Rollback plan
+          echo "Check 3: Rollback plan..."
+          if [[ "${{ inputs.rollback_plan }}" == "true" ]]; then
+            echo "  ✅ Rollback plan confirmed"
+          else
+            echo "  ❌ Rollback plan must be confirmed"
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All pre-deployment checks passed"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: 📋 Pre-deployment summary
+        run: |
+          echo "## 🔍 Pre-deployment Checks Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version Tag | ✅ v${{ steps.validate.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Change Ticket | ✅ ${{ inputs.change_ticket }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment Window | ✅ ${{ inputs.deployment_window }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rollback Plan | ✅ Confirmed |" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job: QA Approval Gate
+  # ===========================================================================
+  qa-approval:
+    name: 🔐 QA Team Approval
+    runs-on: ubuntu-latest
+    needs: pre-deployment-checks
+
+    # Configure QA reviewers in: Settings > Environments > PROD-QA-Approval
+    environment:
+      name: PROD-QA-Approval
+
+    steps:
+      - name: ✅ QA Approval granted
+        run: |
+          echo "## ✅ QA Team Approval" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Approved by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job: Management Approval Gate
+  # ===========================================================================
+  management-approval:
+    name: 🔐 Management Approval
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, qa-approval]
+
+    # Configure Management reviewers in: Settings > Environments > PROD-Management-Approval
+    environment:
+      name: PROD-Management-Approval
+
+    steps:
+      - name: ✅ Management Approval granted
+        run: |
+          echo "## ✅ Management Approval" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Approved by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job: Build for Production
+  # ===========================================================================
+  build-prod:
+    name: 🔨 Build for Production
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, qa-approval, management-approval]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.pre-deployment-checks.outputs.version }}
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 📝 Update version in environment files
+        run: |
+          VERSION="${{ needs.pre-deployment-checks.outputs.version }}"
+          sed -i "s/\${VERSION}/${VERSION}/g" src/environments/environment.prod.ts
+
+      - name: 🏗️ Build for Production
+        run: |
+          npm run build -- --configuration=production --base-href="/srt-learning-cicd-ng/"
+
+      - name: 📤 Upload production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-prod-${{ needs.pre-deployment-checks.outputs.version }}
+          path: dist/srt-learning-cicd-ng/browser
+          retention-days: 365
+
+  # ===========================================================================
+  # Job: Deploy to Production
+  # ===========================================================================
+  deploy-prod:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, build-prod]
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: PROD
+      url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/
+
+    steps:
+      - name: 📥 Download production artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-prod-${{ needs.pre-deployment-checks.outputs.version }}
+          path: dist
+
+      # GitHub Pages deployment
+      - name: 📄 Setup Pages
+        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
+        uses: actions/configure-pages@v4
+
+      - name: 📤 Upload to GitHub Pages
+        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: 🌐 Deploy to GitHub Pages
+        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # GCP deployment (placeholder)
+      - name: 🌐 Deploy to GCP (placeholder)
+        if: env.DEPLOYMENT_PLATFORM == 'gcp'
+        run: |
+          echo "GCP production deployment steps:"
+          echo "1. Authenticate to GCP production project"
+          echo "2. Create backup of current deployment"
+          echo "3. Upload new version to Cloud Storage"
+          echo "4. Update load balancer backend"
+          echo "5. Invalidate CDN cache"
+          echo "6. Run smoke tests"
+          # Uncomment when ready:
+          # gcloud auth activate-service-account --key-file=${{ secrets.GCP_SA_KEY_PROD }}
+          # gsutil -m rsync -d -r dist gs://${{ vars.GCP_BUCKET_PROD }}
+
+  # ===========================================================================
+  # Job: Post-deployment Verification
+  # ===========================================================================
+  post-deployment:
+    name: ✅ Post-deployment Verification
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, deploy-prod]
+
+    steps:
+      - name: 🔍 Verify deployment
+        run: |
+          echo "Running post-deployment verification..."
+
+          # Wait for deployment to propagate
+          sleep 30
+
+          # Health check (adjust URL for your deployment)
+          PROD_URL="https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/"
+
+          echo "Checking ${PROD_URL}..."
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${PROD_URL}" || echo "000")
+
+          if [[ "${HTTP_STATUS}" == "200" ]]; then
+            echo "✅ Health check passed (HTTP ${HTTP_STATUS})"
+          else
+            echo "⚠️ Health check returned HTTP ${HTTP_STATUS}"
+          fi
+
+      - name: 📋 Deployment summary
+        run: |
+          echo "## 🎉 Production Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | v${{ needs.pre-deployment-checks.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | PROD |" >> $GITHUB_STEP_SUMMARY
+          echo "| Change Ticket | ${{ inputs.change_ticket }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment Window | ${{ inputs.deployment_window }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployed by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Time | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Approvals" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ QA Team Approved" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Management Approved" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Monitor application health and metrics" >> $GITHUB_STEP_SUMMARY
+          echo "2. Close change ticket: ${{ inputs.change_ticket }}" >> $GITHUB_STEP_SUMMARY
+          echo "3. Update release notes" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job: Create Release
+  # ===========================================================================
+  create-release:
+    name: 📦 Create Release
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, deploy-prod, post-deployment]
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Download production artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-prod-${{ needs.pre-deployment-checks.outputs.version }}
+          path: dist
+
+      - name: 📦 Create release archive
+        run: |
+          cd dist
+          zip -r ../srt-learning-cicd-ng-${{ needs.pre-deployment-checks.outputs.version }}.zip .
+
+      - name: 📝 Generate release notes
+        id: release-notes
+        run: |
+          VERSION="${{ needs.pre-deployment-checks.outputs.version }}"
+
+          cat << EOF > RELEASE_NOTES.md
+          # Release v${VERSION}
+
+          ## Deployment Information
+          - **Change Ticket:** ${{ inputs.change_ticket }}
+          - **Deployment Window:** ${{ inputs.deployment_window }}
+          - **Deployed by:** ${{ github.actor }}
+          - **Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          ## Approvals
+          - ✅ QA Team
+          - ✅ Management
+
+          ## Changes
+          See commit history for detailed changes.
+          EOF
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.pre-deployment-checks.outputs.version }}
+          name: Release v${{ needs.pre-deployment-checks.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            srt-learning-cicd-ng-${{ needs.pre-deployment-checks.outputs.version }}.zip
+          draft: false
+          prerelease: false

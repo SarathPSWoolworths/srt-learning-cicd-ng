@@ -1,0 +1,70 @@
+<!-- 
+  SrtLearning - Hello World Application
+  A professional Angular application with CI/CD pipeline
+-->
+
+<main class="app-container">
+  <header class="app-header">
+    <div class="logo-container">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23dd0031'/%3E%3Cpath d='M50 15 L75 80 H25 Z' fill='white'/%3E%3C/svg%3E" alt="Logo" class="logo">
+      <h1>{{ title() }}</h1>
+    </div>
+    <span class="environment-badge">{{ environment() }}</span>
+  </header>
+
+  <section class="hero">
+    <h2>Hello World! 👋</h2>
+    <p class="subtitle">Welcome to <strong>SrtLearning</strong></p>
+    <p class="description">
+      A professional Angular application with a comprehensive CI/CD pipeline
+      featuring multi-environment deployments with approval workflows.
+    </p>
+  </section>
+
+  <section class="features">
+    <h3>🚀 Pipeline Features</h3>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h4>Auto Deploy to DEV</h4>
+        <p>Automatic deployment on every merge to main branch</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✅</div>
+        <h4>UAT with QA Approval</h4>
+        <p>QA team approval required before UAT deployment</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h4>PROD Multi-Approval</h4>
+        <p>QA + Management approval for production releases</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏷️</div>
+        <h4>Semantic Versioning</h4>
+        <p>Automatic version bumping on each release</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="tech-stack">
+    <h3>📦 Technology Stack</h3>
+    <div class="tech-badges">
+      <span class="badge angular">Angular 21+</span>
+      <span class="badge typescript">TypeScript</span>
+      <span class="badge scss">SCSS</span>
+      <span class="badge github">GitHub Actions</span>
+      <span class="badge pages">GitHub Pages</span>
+    </div>
+  </section>
+
+  <footer class="app-footer">
+    <p>
+      Version: <strong>{{ version() }}</strong> | 
+      Environment: <strong>{{ environment() }}</strong> |
+      Built with ❤️ using Angular
+    </p>
+  </footer>
+</main>
+
+<router-outlet />

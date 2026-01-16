@@ -1,0 +1,207 @@
+# =============================================================================
+# Deployment Pipeline - Deploy to UAT
+# =============================================================================
+#
+# This workflow handles:
+# - Manual trigger for UAT deployment
+# - QA team approval requirement
+# - Building with UAT environment configuration
+# - Deployment to UAT environment
+#
+# Trigger: Manual workflow dispatch or workflow call
+# Environment: UAT (requires QA approval)
+# =============================================================================
+
+name: 🧪 Deploy to UAT
+
+on:
+  # Manual trigger with version selection
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to deploy (e.g., v1.0.0-build.123+abc1234)'
+        required: true
+        type: string
+      skip_approval:
+        description: 'Skip approval (for emergency deployments only)'
+        required: false
+        type: boolean
+        default: false
+
+  # Can be called from other workflows
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to deploy'
+        required: true
+        type: string
+
+env:
+  NODE_VERSION: '20.x'
+  DEPLOYMENT_PLATFORM: 'github-pages'
+
+jobs:
+  # ===========================================================================
+  # Job: Validate Version
+  # ===========================================================================
+  validate:
+    name: ✅ Validate Version
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ✅ Validate version tag
+        id: validate
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          # Remove 'v' prefix if present
+          VERSION="${VERSION#v}"
+
+          echo "🔍 Validating version: ${VERSION}"
+
+          # Check if tag exists
+          if git tag -l "v${VERSION}" | grep -q "v${VERSION}"; then
+            echo "✅ Version tag v${VERSION} found"
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Version tag v${VERSION} not found"
+            echo "Available tags:"
+            git tag -l | tail -10
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Job: QA Approval Gate
+  # ===========================================================================
+  qa-approval:
+    name: 🔐 QA Approval
+    runs-on: ubuntu-latest
+    needs: validate
+
+    # This environment requires approval from QA team
+    # Configure in: Settings > Environments > UAT > Required reviewers
+    environment:
+      name: UAT-Approval
+
+    steps:
+      - name: ✅ QA Approval granted
+        run: |
+          echo "## ✅ QA Approval Granted" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Approved by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job: Build for UAT
+  # ===========================================================================
+  build-uat:
+    name: 🔨 Build for UAT
+    runs-on: ubuntu-latest
+    needs: [validate, qa-approval]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.validate.outputs.version }}
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      - name: 📝 Update version in environment files
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          sed -i "s/\${VERSION}/${VERSION}/g" src/environments/environment.uat.ts
+
+      - name: 🏗️ Build for UAT environment
+        run: |
+          # Build with UAT configuration
+          # Note: Adjust the base-href for your UAT URL
+          npm run build -- --configuration=production --base-href="/srt-learning-cicd-ng-uat/"
+
+      - name: 📤 Upload UAT artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-uat-${{ needs.validate.outputs.version }}
+          path: dist/srt-learning-cicd-ng/browser
+          retention-days: 90
+
+  # ===========================================================================
+  # Job: Deploy to UAT
+  # ===========================================================================
+  deploy-uat:
+    name: 🚀 Deploy to UAT
+    runs-on: ubuntu-latest
+    needs: [validate, build-uat]
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: UAT
+      url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng-uat/
+
+    steps:
+      - name: 📥 Download UAT artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-uat-${{ needs.validate.outputs.version }}
+          path: dist
+
+      # For GitHub Pages deployment
+      - name: 📄 Setup Pages
+        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
+        uses: actions/configure-pages@v4
+
+      - name: 📤 Upload to GitHub Pages
+        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: 🌐 Deploy to GitHub Pages
+        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
+        id: deployment-pages
+        uses: actions/deploy-pages@v4
+
+      # Placeholder for GCP deployment
+      - name: 🌐 Deploy to GCP (placeholder)
+        if: env.DEPLOYMENT_PLATFORM == 'gcp'
+        run: |
+          echo "GCP deployment would be configured here"
+          echo "Steps would include:"
+          echo "1. Authenticate to GCP"
+          echo "2. Upload to Cloud Storage or App Engine"
+          echo "3. Update CDN cache"
+          # Uncomment and configure when ready:
+          # gcloud auth activate-service-account --key-file=${{ secrets.GCP_SA_KEY }}
+          # gsutil -m rsync -d -r dist gs://${{ vars.GCP_BUCKET_UAT }}
+
+      - name: 📋 Deployment summary
+        run: |
+          echo "## 🧪 UAT Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** UAT" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Perform UAT testing" >> $GITHUB_STEP_SUMMARY
+          echo "- When ready, trigger PROD deployment (requires QA + Management approval)" >> $GITHUB_STEP_SUMMARY

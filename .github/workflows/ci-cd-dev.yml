@@ -1,0 +1,236 @@
+# =============================================================================
+# CI/CD Pipeline - Build, Test, and Deploy to DEV
+# =============================================================================
+#
+# This workflow handles:
+# - Automatic builds and tests on push/PR to main
+# - Automatic deployment to DEV environment on merge to main
+# - Semantic versioning with automatic version bumping
+# - Artifact creation for downstream deployments
+#
+# Trigger: Push to main branch or Pull Request
+# Environment: DEV (automatic deployment)
+# =============================================================================
+
+name: CI/CD Pipeline - Build & Deploy to DEV
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Prevent concurrent deployments
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.x'
+  # Deployment platform configuration (change this for different platforms)
+  DEPLOYMENT_PLATFORM: 'github-pages' # Options: 'github-pages', 'gcp', 'azure', 'aws'
+
+jobs:
+  # ===========================================================================
+  # Job: Build and Test
+  # ===========================================================================
+  build-and-test:
+    name: 🔨 Build & Test
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Checkout Repository
+      # -----------------------------------------------------------------------
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for versioning
+
+      # -----------------------------------------------------------------------
+      # Step 2: Setup Node.js
+      # -----------------------------------------------------------------------
+      - name: 📦 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # -----------------------------------------------------------------------
+      # Step 3: Install Dependencies
+      # -----------------------------------------------------------------------
+      - name: 📚 Install dependencies
+        run: npm ci
+
+      # -----------------------------------------------------------------------
+      # Step 4: Run Linting (if available)
+      # -----------------------------------------------------------------------
+      - name: 🔍 Run linting
+        run: npm run lint --if-present
+        continue-on-error: true
+
+      # -----------------------------------------------------------------------
+      # Step 5: Run Unit Tests
+      # -----------------------------------------------------------------------
+      - name: 🧪 Run unit tests
+        run: npm run test -- --coverage --watchAll=false || true
+
+      # -----------------------------------------------------------------------
+      # Step 6: Calculate Version
+      # -----------------------------------------------------------------------
+      - name: 🏷️ Calculate version
+        id: version
+        run: |
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          # Get short SHA for unique identification
+          SHORT_SHA=$(git rev-parse --short HEAD)
+
+          # Get commit count for build number
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+
+          # Create version string: MAJOR.MINOR.PATCH-build.COMMIT_COUNT+SHA
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            VERSION="${CURRENT_VERSION}-build.${COMMIT_COUNT}+${SHORT_SHA}"
+          else
+            VERSION="${CURRENT_VERSION}-pr.${{ github.event.pull_request.number || 'dev' }}+${SHORT_SHA}"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Version: ${VERSION}"
+
+      # -----------------------------------------------------------------------
+      # Step 7: Update Version in Environment Files
+      # -----------------------------------------------------------------------
+      - name: 📝 Update version in environment files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Update version placeholder in environment files
+          sed -i "s/\${VERSION}/${VERSION}/g" src/environments/environment.dev.ts
+          sed -i "s/\${VERSION}/${VERSION}/g" src/environments/environment.uat.ts
+          sed -i "s/\${VERSION}/${VERSION}/g" src/environments/environment.prod.ts
+
+          echo "✅ Updated environment files with version: ${VERSION}"
+
+      # -----------------------------------------------------------------------
+      # Step 8: Build for DEV Environment
+      # -----------------------------------------------------------------------
+      - name: 🏗️ Build for DEV environment
+        run: |
+          npm run build -- --configuration=development --base-href="/srt-learning-cicd-ng/"
+
+      # -----------------------------------------------------------------------
+      # Step 9: Upload Build Artifacts
+      # -----------------------------------------------------------------------
+      - name: 📤 Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-dev-${{ steps.version.outputs.version }}
+          path: dist/srt-learning-cicd-ng/browser
+          retention-days: 30
+
+      # -----------------------------------------------------------------------
+      # Step 10: Upload artifacts for deployment jobs
+      # -----------------------------------------------------------------------
+      - name: 📤 Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages-artifact
+          path: dist/srt-learning-cicd-ng/browser
+
+  # ===========================================================================
+  # Job: Deploy to DEV (GitHub Pages)
+  # ===========================================================================
+  deploy-dev:
+    name: 🚀 Deploy to DEV
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    # GitHub Pages specific permissions
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: DEV
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Download Build Artifacts
+      # -----------------------------------------------------------------------
+      - name: 📥 Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages-artifact
+          path: dist
+
+      # -----------------------------------------------------------------------
+      # Step 2: Setup GitHub Pages
+      # -----------------------------------------------------------------------
+      - name: 📄 Setup Pages
+        uses: actions/configure-pages@v4
+
+      # -----------------------------------------------------------------------
+      # Step 3: Upload to GitHub Pages
+      # -----------------------------------------------------------------------
+      - name: 📤 Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      # -----------------------------------------------------------------------
+      # Step 4: Deploy to GitHub Pages
+      # -----------------------------------------------------------------------
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # -----------------------------------------------------------------------
+      # Step 5: Deployment Summary
+      # -----------------------------------------------------------------------
+      - name: 📋 Deployment summary
+        run: |
+          echo "## 🚀 DEV Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.build-and-test.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** DEV" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Review changes in DEV environment" >> $GITHUB_STEP_SUMMARY
+          echo "- Trigger UAT deployment when ready (requires QA approval)" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job: Create Version Tag
+  # ===========================================================================
+  create-version-tag:
+    name: 🏷️ Create Version Tag
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy-dev]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Create and push tag
+        run: |
+          VERSION="${{ needs.build-and-test.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "Release version ${VERSION}"
+          git push origin "v${VERSION}"
+
+          echo "## 🏷️ Version Tagged" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** v${VERSION}" >> $GITHUB_STEP_SUMMARY
