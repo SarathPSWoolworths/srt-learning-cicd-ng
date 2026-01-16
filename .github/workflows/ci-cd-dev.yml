@@ -205,6 +205,7 @@ jobs:
           echo "**Version:** ${{ needs.build-and-test.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** DEV" >> $GITHUB_STEP_SUMMARY
           echo "**URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+                    echo "**DEV URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "- Review changes in DEV environment" >> $GITHUB_STEP_SUMMARY

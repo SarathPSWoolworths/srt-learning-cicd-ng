@@ -90,6 +90,8 @@ jobs:
     # Configure in: Settings > Environments > UAT > Required reviewers
     environment:
       name: UAT-Approval
+      reviewers:
+        - SarathPSWoolworths
 
     steps:
       - name: ✅ QA Approval granted
@@ -157,6 +159,8 @@ jobs:
     environment:
       name: UAT
       url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng-uat/
+      reviewers:
+        - SarathPSWoolworths
 
     steps:
       - name: 📥 Download UAT artifacts
@@ -201,6 +205,7 @@ jobs:
           echo "**Version:** ${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** UAT" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+                    echo "**UAT URL:** https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng-uat/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "- Perform UAT testing" >> $GITHUB_STEP_SUMMARY

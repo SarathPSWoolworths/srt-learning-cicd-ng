@@ -124,6 +124,8 @@ jobs:
     # Configure QA reviewers in: Settings > Environments > PROD-QA-Approval
     environment:
       name: PROD-QA-Approval
+      reviewers:
+        - SarathPSWoolworths
 
     steps:
       - name: ✅ QA Approval granted
@@ -144,6 +146,8 @@ jobs:
     # Configure Management reviewers in: Settings > Environments > PROD-Management-Approval
     environment:
       name: PROD-Management-Approval
+      reviewers:
+        - SarathPSWoolworths
 
     steps:
       - name: ✅ Management Approval granted
@@ -208,6 +212,9 @@ jobs:
     environment:
       name: PROD
       url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/
+      reviewers:
+        - SarathPSWoolworths
+          echo "**PROD URL:** https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/" >> $GITHUB_STEP_SUMMARY
 
     steps:
       - name: 📥 Download production artifacts
