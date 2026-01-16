@@ -12,7 +12,7 @@
 # Environment: UAT (requires QA approval)
 # =============================================================================
 
-name: 🧪 Deploy to UAT
+name: 2 🧪 UAT Deployment
 
 on:
   # Manual trigger with version selection

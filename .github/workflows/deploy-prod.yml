@@ -13,7 +13,7 @@
 # Environment: PROD (requires QA + Management approval)
 # =============================================================================
 
-name: 🚀 Deploy to PROD
+name: 3 🚀 Production Deployment
 
 on:
   workflow_dispatch:
