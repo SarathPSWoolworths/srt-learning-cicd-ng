@@ -142,6 +142,8 @@ jobs:
         run: |
           mkdir -p github-pages-artifact/dev
           cp -r dist/srt-learning-cicd-ng/browser/* github-pages-artifact/dev/
+          cp src/404.html github-pages-artifact/404.html
+          cp src/404.html github-pages-artifact/dev/404.html
       - name: 📤 Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
