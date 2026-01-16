@@ -178,10 +178,11 @@ jobs:
       - name: 📚 Install dependencies
         run: npm ci
 
-      - name: 📝 Update version in environment files
+      - name: 📝 Update version and environment name in environment files
         run: |
           VERSION="${{ needs.pre-deployment-checks.outputs.version }}"
           sed -i "s/\${VERSION}/${VERSION}/g" src/environments/environment.prod.ts
+          sed -i "s/name: '.*'/name: 'PROD'/g" src/environments/environment.prod.ts
 
       - name: 🏗️ Build for Production
         run: |

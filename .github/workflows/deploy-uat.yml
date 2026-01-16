@@ -124,10 +124,11 @@ jobs:
       - name: 📚 Install dependencies
         run: npm ci
 
-      - name: 📝 Update version in environment files
+      - name: 📝 Update version and environment name in environment files
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
           sed -i "s/\${VERSION}/${VERSION}/g" src/environments/environment.uat.ts
+          sed -i "s/name: '.*'/name: 'UAT'/g" src/environments/environment.uat.ts
 
       - name: 🏗️ Build for UAT environment
         run: |
