@@ -179,6 +179,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 📄 Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          enablement: true
 
       # -----------------------------------------------------------------------
       # Step 3: Upload to GitHub Pages
