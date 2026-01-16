@@ -88,10 +88,9 @@ jobs:
 
     # This environment requires approval from QA team
     # Configure in: Settings > Environments > UAT > Required reviewers
+    # Set required reviewers for UAT-Approval in GitHub UI (Settings > Environments)
     environment:
       name: UAT-Approval
-      reviewers:
-        - SarathPSWoolworths
 
     steps:
       - name: ✅ QA Approval granted
@@ -156,11 +155,10 @@ jobs:
       pages: write
       id-token: write
 
+    # Set required reviewers for UAT in GitHub UI (Settings > Environments)
     environment:
       name: UAT
       url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng-uat/
-      reviewers:
-        - SarathPSWoolworths
 
     steps:
       - name: 📥 Download UAT artifacts

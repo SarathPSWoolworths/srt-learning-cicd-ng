@@ -122,10 +122,9 @@ jobs:
     needs: pre-deployment-checks
 
     # Configure QA reviewers in: Settings > Environments > PROD-QA-Approval
+    # Set required reviewers for PROD-QA-Approval in GitHub UI (Settings > Environments)
     environment:
       name: PROD-QA-Approval
-      reviewers:
-        - SarathPSWoolworths
 
     steps:
       - name: ✅ QA Approval granted
@@ -144,10 +143,9 @@ jobs:
     needs: [pre-deployment-checks, qa-approval]
 
     # Configure Management reviewers in: Settings > Environments > PROD-Management-Approval
+    # Set required reviewers for PROD-Management-Approval in GitHub UI (Settings > Environments)
     environment:
       name: PROD-Management-Approval
-      reviewers:
-        - SarathPSWoolworths
 
     steps:
       - name: ✅ Management Approval granted
@@ -209,11 +207,10 @@ jobs:
       pages: write
       id-token: write
 
+    # Set required reviewers for PROD in GitHub UI (Settings > Environments)
     environment:
       name: PROD
       url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/
-      reviewers:
-        - SarathPSWoolworths
           echo "**PROD URL:** https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/" >> $GITHUB_STEP_SUMMARY
 
     steps:
