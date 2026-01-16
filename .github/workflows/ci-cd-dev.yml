@@ -36,9 +36,6 @@ jobs:
   # Job: Build and Test
   # ===========================================================================
   build-and-test:
-          - name: 🕵️‍♂️ Print version from environment file
-            run: |
-              echo "DEV environment version: $(grep version src/environments/environment.dev.ts)"
     name: 🔨 Build & Test
     runs-on: ubuntu-latest
 
@@ -47,7 +44,14 @@ jobs:
 
     steps:
       # -----------------------------------------------------------------------
-      # Step 1: Checkout Repository
+      # Step 1: Print version from environment file
+      # -----------------------------------------------------------------------
+      - name: 🕵️‍♂️ Print version from environment file
+        run: |
+          echo "DEV environment version: $(grep version src/environments/environment.dev.ts)"
+
+      # -----------------------------------------------------------------------
+      # Step 2: Checkout Repository
       # -----------------------------------------------------------------------
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
