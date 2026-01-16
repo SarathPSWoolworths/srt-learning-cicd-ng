@@ -8,8 +8,15 @@
     <script>
       // If JS is enabled, redirect to index.html and preserve path
       var l = window.location;
-      var path = l.pathname.replace(/\/[^/]*$/, '/');
-      window.location.replace(path + 'index.html' + l.search + l.hash);
+      // Only redirect if not at root
+      if (
+        l.pathname !== '/' &&
+        l.pathname !== '/srt-learning-cicd-ng/' &&
+        l.pathname !== '/srt-learning-cicd-ng'
+      ) {
+        var path = l.pathname.replace(/\/[^/]*$/, '/');
+        window.location.replace(path + 'index.html' + l.search + l.hash);
+      }
     </script>
   </head>
   <body>
