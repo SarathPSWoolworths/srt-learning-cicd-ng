@@ -86,22 +86,31 @@ jobs:
       - name: 🏷️ Calculate version
         id: version
         run: |
-          # Get current version from package.json
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-
-          # Get short SHA for unique identification
-          SHORT_SHA=$(git rev-parse --short HEAD)
-
-          # Get commit count for build number
-          COMMIT_COUNT=$(git rev-list --count HEAD)
-
-          # Create version string: MAJOR.MINOR.PATCH-build.COMMIT_COUNT+SHA
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            VERSION="${CURRENT_VERSION}-dev-build.${COMMIT_COUNT}+${SHORT_SHA}"
+          # Get latest tag (ignore pre-releases)
+          LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          if [[ -z "$LATEST_TAG" ]]; then
+            MAJOR=1; MINOR=0; PATCH=0
           else
-            VERSION="${CURRENT_VERSION}-pr.${{ github.event.pull_request.number || 'dev' }}+${SHORT_SHA}"
+            TAG_NO_V=${LATEST_TAG#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$TAG_NO_V"
           fi
 
+          # Increment patch by default
+          PATCH=$((PATCH+1))
+
+          # If patch > 9, increment minor and reset patch
+          if [[ $PATCH -gt 9 ]]; then
+            PATCH=0
+            MINOR=$((MINOR+1))
+          fi
+
+          # If minor > 9, increment major and reset minor/patch
+          if [[ $MINOR -gt 9 ]]; then
+            MINOR=0
+            MAJOR=$((MAJOR+1))
+          fi
+
+          VERSION="$MAJOR.$MINOR.$PATCH"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "📦 Version: ${VERSION}"
 
