@@ -36,6 +36,9 @@ jobs:
   # Job: Build and Test
   # ===========================================================================
   build-and-test:
+          - name: 🕵️‍♂️ Print version from environment file
+            run: |
+              echo "DEV environment version: $(grep version src/environments/environment.dev.ts)"
     name: 🔨 Build & Test
     runs-on: ubuntu-latest
 
