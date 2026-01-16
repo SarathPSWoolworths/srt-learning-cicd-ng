@@ -12,7 +12,7 @@
 # Environment: DEV (automatic deployment)
 # =============================================================================
 
-name: Automatic DEV Deployment
+name: 🖥️ Automatic DEV Deployment
 
 on:
   push:
