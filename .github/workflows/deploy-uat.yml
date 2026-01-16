@@ -131,16 +131,17 @@ jobs:
 
       - name: 🏗️ Build for UAT environment
         run: |
-          # Build with UAT configuration
-          # Note: Adjust the base-href for your UAT URL
-          npm run build -- --configuration=production --base-href="/srt-learning-cicd-ng-uat/"
+          npm run build -- --configuration=production --base-href="/srt-learning-cicd-ng/uat/"
 
-      - name: 📤 Upload UAT artifacts
+      - name: 📤 Prepare UAT artifact for GitHub Pages
+        run: |
+          mkdir -p github-pages-artifact/uat
+          cp -r dist/srt-learning-cicd-ng/browser/* github-pages-artifact/uat/
+      - name: 📤 Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist-uat-${{ needs.validate.outputs.version }}
-          path: dist/srt-learning-cicd-ng/browser
-          retention-days: 90
+          name: github-pages-artifact
+          path: github-pages-artifact
 
   # ===========================================================================
   # Job: Deploy to UAT
@@ -161,25 +162,18 @@ jobs:
       url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng-uat/
 
     steps:
-      - name: 📥 Download UAT artifacts
+      - name: 📥 Download UAT artifact
         uses: actions/download-artifact@v4
         with:
-          name: dist-uat-${{ needs.validate.outputs.version }}
-          path: dist
-
-      # For GitHub Pages deployment
+          name: github-pages-artifact
+          path: github-pages-artifact
       - name: 📄 Setup Pages
-        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
         uses: actions/configure-pages@v4
-
       - name: 📤 Upload to GitHub Pages
-        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
-
+          path: github-pages-artifact
       - name: 🌐 Deploy to GitHub Pages
-        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
         id: deployment-pages
         uses: actions/deploy-pages@v4
 

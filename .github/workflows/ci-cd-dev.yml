@@ -124,26 +124,20 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🏗️ Build for DEV environment
         run: |
-          npm run build -- --configuration=development --base-href="/srt-learning-cicd-ng/"
+          npm run build -- --configuration=development --base-href="/srt-learning-cicd-ng/dev/"
 
       # -----------------------------------------------------------------------
       # Step 9: Upload Build Artifacts
       # -----------------------------------------------------------------------
-      - name: 📤 Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-dev-${{ steps.version.outputs.version }}
-          path: dist/srt-learning-cicd-ng/browser
-          retention-days: 30
-
-      # -----------------------------------------------------------------------
-      # Step 10: Upload artifacts for deployment jobs
-      # -----------------------------------------------------------------------
+      - name: 📤 Prepare DEV artifact for GitHub Pages
+        run: |
+          mkdir -p github-pages-artifact/dev
+          cp -r dist/srt-learning-cicd-ng/browser/* github-pages-artifact/dev/
       - name: 📤 Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
           name: github-pages-artifact
-          path: dist/srt-learning-cicd-ng/browser
+          path: github-pages-artifact
 
   # ===========================================================================
   # Job: Deploy to DEV (GitHub Pages)
@@ -168,29 +162,17 @@ jobs:
       # -----------------------------------------------------------------------
       # Step 1: Download Build Artifacts
       # -----------------------------------------------------------------------
-      - name: 📥 Download build artifacts
+      - name: 📥 Download DEV artifact
         uses: actions/download-artifact@v4
         with:
           name: github-pages-artifact
-          path: dist
-
-      # -----------------------------------------------------------------------
-      # Step 2: Setup GitHub Pages
-      # -----------------------------------------------------------------------
+          path: github-pages-artifact
       - name: 📄 Setup Pages
         uses: actions/configure-pages@v4
-
-      # -----------------------------------------------------------------------
-      # Step 3: Upload to GitHub Pages
-      # -----------------------------------------------------------------------
       - name: 📤 Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
-
-      # -----------------------------------------------------------------------
-      # Step 4: Deploy to GitHub Pages
-      # -----------------------------------------------------------------------
+          path: github-pages-artifact
       - name: 🌐 Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

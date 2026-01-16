@@ -186,13 +186,15 @@ jobs:
       - name: 🏗️ Build for Production
         run: |
           npm run build -- --configuration=production --base-href="/srt-learning-cicd-ng/"
-
-      - name: 📤 Upload production artifacts
+      - name: 📤 Prepare PROD artifact for GitHub Pages
+        run: |
+          mkdir -p github-pages-artifact
+          cp -r dist/srt-learning-cicd-ng/browser/* github-pages-artifact/
+      - name: 📤 Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist-prod-${{ needs.pre-deployment-checks.outputs.version }}
-          path: dist/srt-learning-cicd-ng/browser
-          retention-days: 365
+          name: github-pages-artifact
+          path: github-pages-artifact
 
   # ===========================================================================
   # Job: Deploy to Production
@@ -211,28 +213,21 @@ jobs:
     environment:
       name: PROD
       url: https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/
-          echo "**PROD URL:** https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/" >> $GITHUB_STEP_SUMMARY
+        echo "**PROD URL:** https://${{ github.repository_owner }}.github.io/srt-learning-cicd-ng/" >> $GITHUB_STEP_SUMMARY
 
     steps:
-      - name: 📥 Download production artifacts
+      - name: 📥 Download PROD artifact
         uses: actions/download-artifact@v4
         with:
-          name: dist-prod-${{ needs.pre-deployment-checks.outputs.version }}
-          path: dist
-
-      # GitHub Pages deployment
+          name: github-pages-artifact
+          path: github-pages-artifact
       - name: 📄 Setup Pages
-        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
         uses: actions/configure-pages@v4
-
       - name: 📤 Upload to GitHub Pages
-        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
-
+          path: github-pages-artifact
       - name: 🌐 Deploy to GitHub Pages
-        if: env.DEPLOYMENT_PLATFORM == 'github-pages'
         id: deployment
         uses: actions/deploy-pages@v4
 
