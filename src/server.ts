@@ -10,6 +10,13 @@ import { join } from 'node:path';
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
+
+// Security: Disable X-Powered-By header
+app.disable('x-powered-by');
+
+// (Recommended) Use Helmet for additional security headers
+// import helmet from 'helmet';
+// app.use(helmet());
 const angularApp = new AngularNodeAppEngine();
 
 /**

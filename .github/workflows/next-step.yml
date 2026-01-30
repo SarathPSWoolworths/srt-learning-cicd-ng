@@ -1,0 +1,18 @@
+# Placeholder for next workflow step after PR Check
+# Add deployment or other steps as needed in this file.
+
+name: Next Step (e.g., Deploy)
+
+on:
+  workflow_run:
+    workflows: ["PR Check"]
+    types:
+      - completed
+
+jobs:
+  next-step:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder for next step
+        run: echo "Next step after PR Check (e.g., deploy, notify, etc.)"

@@ -5,19 +5,7 @@
     <meta charset="utf-8" />
     <title>Redirecting...</title>
     <meta http-equiv="refresh" content="0; url=./" />
-    <script>
-      // If JS is enabled, redirect to index.html and preserve path
-      var l = window.location;
-      // Only redirect if not at root
-      if (
-        l.pathname !== '/' &&
-        l.pathname !== '/srt-learning-cicd-ng/' &&
-        l.pathname !== '/srt-learning-cicd-ng'
-      ) {
-        var path = l.pathname.replace(/\/[^/]*$/, '/');
-        window.location.replace(path + 'index.html' + l.search + l.hash);
-      }
-    </script>
+    <!-- JS redirect removed for security. Please use the link below to return to the app. -->
   </head>
   <body>
     <h1>Redirecting...</h1>

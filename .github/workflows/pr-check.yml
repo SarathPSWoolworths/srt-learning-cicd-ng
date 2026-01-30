@@ -1,0 +1,47 @@
+      - name: Snyk Security Scan (non-blocking)
+        run: |
+          npx snyk code test --all-projects || true
+        continue-on-error: true
+# PR Check Workflow for SrtLearning Angular Project
+# This workflow runs on pull requests and pushes to main branch.
+
+name: PR Check
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  pr-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run unit tests with coverage
+        run: npm run test -- --watch=false --code-coverage
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(grep -Po 'statements.*?\K[0-9]+(?=%)' coverage/lcov-report/index.html | head -1)
+          echo "Statements coverage: $COVERAGE%"
+          if [ "$COVERAGE" -lt 60 ]; then
+            echo "::error::Test coverage ($COVERAGE%) is below 60%!"
+            exit 1
+          fi
+
+      - name: Build
+        run: npm run build
